@@ -1,0 +1,151 @@
+#include <mlx.h>
+#include <stdlib.h>
+#include "get_line/get_next_line.h"
+#include "libft/libft.h"
+typedef struct s_textr
+{
+    char *NO;
+    char *SO;
+    char *WE;
+    char *EA;
+    int color_f;
+    int color_c;
+}
+typedef struct	s_data {
+	void	*img;
+	char	*addr;
+	int		bits_per_pixel;
+	int		line_length;
+	int		endian;
+}				t_data;
+
+typedef struct s_mlx
+{
+    char **map2d;
+    t_data data;
+    int x;
+    int y;
+    int fd;
+}t_mlx;
+
+void	my_mlx_pixel_put(t_data *data, int x, int y, int color)
+{
+	char	*dst;
+
+	dst = data->addr + (y * data->line_length + x * (data->bits_per_pixel / 8));
+	*(unsigned int*)dst = color;
+}
+
+
+void get_map(t_mlx *data, int fd)
+{
+    char *line;
+    char *tmp;
+    line = NULL;
+    tmp = NULL;
+    line = get_next_line(fd);
+    if(!line)
+        perror("fd");
+    while(line)
+    {
+        tmp = ft_strjoin(tmp, line);
+        line = get_next_line(fd);
+    }
+    data->map2d = ft_split(tmp, '\n');
+}
+
+void init(t_mlx **data)
+{
+    (*data)->fd = -1;
+    (*data)->map2d = NULL;
+    (*data)->x = 0;
+    (*data)->y = 0;
+}
+
+void get_x_y(int *x, int *y, char **map)
+{
+    while(map[*x])
+    {
+        while(map[(*x)][(*y)])
+            (*y)++;
+        (*x)++;
+    }
+}
+
+void    draw_square(int i, int j, t_mlx *data, int color)
+{
+    int x = 0;
+    int y = 0;
+
+    while (y < 64 - 1)
+    {
+        x = 0;
+        while (x < 64 - 1)
+        {
+            my_mlx_pixel_put(&data->data, i * 64 + y + 1 , j * 64 + x + 1, color);
+            x++;
+        }
+        y++;
+    }
+}
+
+void draw_the_map(void *mlx, void *win, t_mlx *data)
+{
+    int y;
+    int x;
+    int i = 0;
+    int j = 0;
+    int color;
+    x = 0;
+    y = 0;
+    get_x_y(&x, &y, data->map2d);
+    win = mlx_new_window(mlx, y * 64, x * 64, "test");
+    data->data.img = mlx_new_image(mlx, y * 64, x * 64);
+    data->data.addr = mlx_get_data_addr(data->data.img, &data->data.bits_per_pixel, &data->data.line_length, &data->data.endian);
+    while (i < x)
+    {
+        j = 0;
+        while (j < y)
+        {
+            if (data->map2d[i][j] == '1')
+            {
+                color = 0xFF5B38;
+                draw_square(i, j,data, color);
+            }
+            if (data->map2d[i][j] == '0')
+             {
+                color = 0xB5B5B0;
+                draw_square(i, j,data, color);
+             }
+            if(data->map2d[i][j] == 'N')
+              {
+                color = 0xB5B5B0;
+                draw_square(i, j,data, color);
+              }
+            
+            j++;
+        }
+        i++; 
+    }
+    mlx_put_image_to_window(mlx, win, data->data.img, 0, 0);
+    mlx_loop(mlx);
+}
+int main(const int argc, char **argv)
+{
+    t_mlx *data;
+    void *mlx;
+    void *win;
+    mlx = mlx_init();
+
+    int fd;
+    data = (t_mlx *)malloc(sizeof(t_mlx));
+    init(&data);
+    fd = open(argv[1], O_RDONLY);
+    if(fd == -1)
+    {
+        perror("fd");
+    }
+    get_map(data, fd);
+    draw_the_map(mlx, win, data);
+    return 0;
+}
